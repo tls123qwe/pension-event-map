@@ -59,7 +59,11 @@ header.top{background:var(--surface);border-bottom:1px solid var(--line);padding
 .btn .n{font-variant-numeric:tabular-nums;opacity:.8}
 .row{display:flex;gap:6px;align-items:center}
 .row input[type=search]{flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0 12px;font-size:16px}
-.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px;margin:-2px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px;margin:-2px;scroll-padding-inline:14px}
+/* 옆으로 넘기는 칩 줄: 오른쪽 끝을 흐리게 해서 잘린 게 아니라 더 있다는 표시 */
+.chips.fade-r{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
+.chips.fade-l{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent)}
+.chips.fade-l.fade-r{-webkit-mask-image:linear-gradient(to right,transparent,#000 28px,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,transparent,#000 28px,#000 calc(100% - 28px),transparent)}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;height:32px;padding:0 11px;border-radius:999px;border:1px solid var(--line);background:transparent;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
 .chip .n{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -75,7 +79,9 @@ header.top{background:var(--surface);border-bottom:1px solid var(--line);padding
 .check input{width:17px;height:17px;accent-color:var(--accent)}
 
 .main{flex:1;min-height:0;display:flex;flex-direction:column}
-.mapwrap{position:relative;height:36%;min-height:180px;flex:none;border-bottom:1px solid var(--line)}
+/* 휴대폰 세로 화면: 한반도(세로로 긴 모양)가 가로폭을 채우도록 화면 높이의 절반 정도 */
+.mapwrap{position:relative;height:clamp(220px,48dvh,min(118vw,520px));flex:none;border-bottom:1px solid var(--line)}
+@media (orientation:landscape) and (max-width:899px){.mapwrap{height:clamp(140px,40dvh,420px)}}
 .mapwrap.collapsed{height:0;min-height:0;border:0;overflow:hidden}
 .mapwrap.collapsed .maplegend{display:none}
 #map{position:absolute;inset:0;background:var(--sea)}
@@ -95,7 +101,7 @@ header.top{background:var(--surface);border-bottom:1px solid var(--line);padding
 .bwrap.small .bl{font-size:10px}
 .narrow .bwrap:not(.on) .bl{display:none}
 .leaflet-bar a,.leaflet-bar a:hover{background:var(--surface);color:var(--fg);border-color:var(--line)}
-.maplegend{position:absolute;left:8px;bottom:8px;z-index:500;font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--surface) 85%,transparent);border-radius:6px;padding:3px 7px;pointer-events:none}
+.maplegend{position:absolute;left:8px;top:8px;z-index:500;font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--surface) 85%,transparent);border-radius:6px;padding:3px 7px;pointer-events:none}
 
 .sheet{flex:1;min-height:0;display:flex;flex-direction:column}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-block:8px;font-size:13px;color:var(--muted);flex-wrap:wrap}
@@ -425,8 +431,8 @@ function updateBubbles(){
 }
 function fitToFiltered(){
   if(state.sido&&provLayers[state.sido]){map.fitBounds(provLayers[state.sido].getBounds(),{padding:[18,18]});return}
-  map.fitBounds(KOREA,{padding:[6,6]})}
-map.fitBounds(KOREA,{padding:[6,6]});
+  map.fitBounds(KOREA,{padding:[22,22]})}
+map.fitBounds(KOREA,{padding:[22,22]});
 function setSido(k,fit){state.sido=k;state.sg="";state.limit=60;state.sel=null;
   refresh();if(fit)fitToFiltered();$("list").scrollTop=0;
   const b=regionsEl.querySelector(`[data-r="${k}"]`);b&&b.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"})}
@@ -437,6 +443,10 @@ function applyMap(){mapwrap.classList.toggle("collapsed",!state.mapOpen);$("mapT
 $("mapToggle").addEventListener("click",()=>{state.mapOpen=!state.mapOpen;savePref();applyMap()});
 let lastW=0;
 new ResizeObserver(()=>{map.invalidateSize();const w=map.getSize().x;if(Math.abs(w-lastW)>40&&w>0){lastW=w;updateBubbles();fitToFiltered()}}).observe(mapwrap);
+/* 칩 줄 양 끝 흐림: 더 넘길 게 있는 쪽만 */
+function chipFade(el){const max=el.scrollWidth-el.clientWidth;el.classList.toggle("fade-l",el.scrollLeft>2);el.classList.toggle("fade-r",max>2&&el.scrollLeft<max-2)}
+["regions","dateChips","sgg"].forEach(id=>{const el=$(id);el.addEventListener("scroll",()=>chipFade(el),{passive:true});
+  new ResizeObserver(()=>chipFade(el)).observe(el);new MutationObserver(()=>requestAnimationFrame(()=>chipFade(el))).observe(el,{childList:true,attributes:true,attributeFilter:["hidden"]})});
 
 /* ================= 목록 ================= */
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
