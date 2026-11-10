@@ -1,0 +1,8 @@
+# 개인 정보 — 절대 올리지 않음
+memos.json
+data/private.js
+# 로컬 백업·임시 파일
+data/backup/
+*.tmp
+.DS_Store
+__pycache__/

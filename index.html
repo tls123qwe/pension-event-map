@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f6b4f">
+<title>펜션 영업 행사지도</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2C10 2 5 7 5 13c0 8 11 17 11 17s11-9 11-17C27 7 22 2 16 2z' fill='%231f6b4f'/%3E%3Ccircle cx='16' cy='13' r='4.5' fill='%23f0a83c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gothic+A1:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+/* 레이아웃: 휴대폰은 위 필터 → 지도(접기 가능) → 목록, 넓은 화면은 왼쪽 목록 / 오른쪽 지도 */
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --fg:#17231d; --muted:#5d6b63; --line:#d5ddd7; --soft:#e9eee9;
+  --accent:#1f6b4f; --accent-fg:#ffffff; --lamp:#c97c12;
+  --c-winter:#2f6fb0; --c-light:#c2771a; --c-flower:#c24a7a; --c-food:#7a5bb5; --c-heritage:#8a6a3c; --c-art:#1f8a8a; --c-family:#3c8a3c; --c-etc:#6b7570;
+  --now:#c8483a; --ok:#1f7a4a; --warn:#a46a0b;
+  --sea:#cddce3; --land:#fbfcf8; --land-line:#9fb0a5; --land-hover:#eef4ee; --land-sel:#e6f1e9;
+  --f-display:"Do Hyeon","Gothic A1",system-ui,sans-serif;
+  --f-body:"Gothic A1",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1714; --surface:#16211c; --fg:#e7eee9; --muted:#9aa9a1; --line:#2a3931; --soft:#1d2a24;
+  --accent:#5cc79a; --accent-fg:#06140e; --lamp:#f0a83c;
+  --c-winter:#6aa8e8; --c-light:#f0a83c; --c-flower:#ec7fab; --c-food:#ad92e6; --c-heritage:#c9a46a; --c-art:#5cc4c4; --c-family:#7ccc7c; --c-etc:#9aa9a1;
+  --now:#ef7a6c; --ok:#5cc79a; --warn:#f0b14a;
+  --sea:#0b1310; --land:#1b2722; --land-line:#3a4d43; --land-hover:#22312a; --land-sel:#243a2f;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1714; --surface:#16211c; --fg:#e7eee9; --muted:#9aa9a1; --line:#2a3931; --soft:#1d2a24;
+  --accent:#5cc79a; --accent-fg:#06140e; --lamp:#f0a83c;
+  --c-winter:#6aa8e8; --c-light:#f0a83c; --c-flower:#ec7fab; --c-food:#ad92e6; --c-heritage:#c9a46a; --c-art:#5cc4c4; --c-family:#7ccc7c; --c-etc:#9aa9a1;
+  --now:#ef7a6c; --ok:#5cc79a; --warn:#f0b14a;
+  --sea:#0b1310; --land:#1b2722; --land-line:#3a4d43; --land-hover:#22312a; --land-sel:#243a2f;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;overflow:hidden;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.gutter{padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+
+.app{height:100%;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding-block:10px 8px;display:grid;gap:8px;z-index:20}
+.brand{display:flex;align-items:center;gap:8px}
+.brand h1{margin:0;font:400 21px/1.1 var(--f-display);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand h1 b{color:var(--lamp);font-weight:400}
+.sync{font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.sync.on i{background:var(--ok)} .sync.err i{background:var(--now)}
+.btn{height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;text-decoration:none;color:var(--fg);white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn .n{font-variant-numeric:tabular-nums;opacity:.8}
+.row{display:flex;gap:6px;align-items:center}
+.row input[type=search]{flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0 12px;font-size:16px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px;margin:-2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:32px;padding:0 11px;border-radius:999px;border:1px solid var(--line);background:transparent;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
+.chip .n{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip[aria-pressed="true"] .n{color:var(--bg);opacity:.75}
+.chip:disabled{opacity:.35;cursor:default}
+.lbl{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;flex:none;width:30px}
+.filters{display:grid;gap:10px;padding-block:4px 2px}
+.dates{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dates input{height:34px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:0 8px;min-width:0;flex:1 1 130px;font-size:15px}
+.check{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;user-select:none}
+.check input{width:17px;height:17px;accent-color:var(--accent)}
+
+.main{flex:1;min-height:0;display:flex;flex-direction:column}
+.mapwrap{position:relative;height:36%;min-height:180px;flex:none;border-bottom:1px solid var(--line)}
+.mapwrap.collapsed{height:0;min-height:0;border:0;overflow:hidden}
+.mapwrap.collapsed .maplegend{display:none}
+#map{position:absolute;inset:0;background:var(--sea)}
+.leaflet-container{font-family:var(--f-body);background:var(--sea)}
+.prov{fill:var(--land);fill-opacity:1;stroke:var(--land-line);stroke-width:1.2;cursor:pointer;transition:fill .15s}
+.prov:hover{fill:var(--land-hover)}
+.prov.sel{fill:var(--land-sel);stroke:var(--accent);stroke-width:2}
+.sggshape{fill:transparent;stroke:var(--land-line);stroke-width:.7;cursor:pointer}
+.sggshape:hover{fill:color-mix(in srgb,var(--accent) 10%,transparent)}
+.sggshape.sel{fill:color-mix(in srgb,var(--lamp) 22%,transparent);stroke:var(--lamp);stroke-width:2}
+.bwrap{position:relative}
+.bub{width:100%;height:100%;border-radius:50%;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;font:800 12px var(--f-body);font-variant-numeric:tabular-nums;border:2px solid var(--surface);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
+.bub.past{background:var(--muted)}
+.bub.sel{background:var(--lamp);color:#fff}
+.bl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:1px;white-space:nowrap;font-size:11px;font-weight:800;color:var(--fg);pointer-events:none;
+  text-shadow:0 0 3px var(--land),0 0 3px var(--land),0 0 3px var(--land)}
+.bwrap.small .bl{font-size:10px}
+.narrow .bwrap:not(.on) .bl{display:none}
+.leaflet-bar a,.leaflet-bar a:hover{background:var(--surface);color:var(--fg);border-color:var(--line)}
+.maplegend{position:absolute;left:8px;bottom:8px;z-index:500;font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--surface) 85%,transparent);border-radius:6px;padding:3px 7px;pointer-events:none}
+
+.sheet{flex:1;min-height:0;display:flex;flex-direction:column}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-block:8px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.sheet-head strong{color:var(--fg);font-variant-numeric:tabular-nums}
+.sheet-head .where{font:400 17px var(--f-display);color:var(--fg)}
+.sgg{padding-bottom:8px}
+.list{flex:1;min-height:0;overflow-y:auto;padding-block:0 calc(24px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;align-content:start;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.group{display:flex;align-items:baseline;gap:8px;padding-top:8px;font:400 16px var(--f-display)}
+.group small{font:600 12px var(--f-body);color:var(--muted)}
+.group.now{color:var(--now)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 12px;display:grid;grid-template-columns:52px 1fr auto;gap:3px 10px;cursor:pointer}
+.card.sel{border-color:var(--lamp);box-shadow:0 0 0 1px var(--lamp)}
+.card.past{background:color-mix(in srgb,var(--surface) 55%,var(--bg))}
+.card.past .ttl h3{color:var(--muted)}
+.date{grid-row:span 3;text-align:center;border-radius:8px;background:var(--soft);padding:6px 0;font-variant-numeric:tabular-nums;align-self:start}
+.date .m{display:block;font-size:11px;color:var(--muted)}
+.date .d{display:block;font:400 21px/1 var(--f-display)}
+.date .dd{display:block;font-size:10.5px;font-weight:800;color:var(--accent);margin-top:3px}
+.date .dd.now{color:var(--now)}
+.date .dd.past{color:var(--muted)}
+.ttl{min-width:0;display:flex;align-items:center;gap:6px}
+.ttl h3{margin:0;font-size:15px;font-weight:800;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.star{grid-row:span 2;width:34px;height:34px;border:0;background:transparent;border-radius:8px;cursor:pointer;color:var(--line);display:grid;place-items:center;padding:0}
+.star svg{width:20px;height:20px;fill:currentColor}
+.star[aria-pressed="true"]{color:var(--lamp)}
+.meta{grid-column:2/4;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:2px 8px;min-width:0}
+.tags{grid-column:2/4;display:flex;flex-wrap:wrap;gap:4px}
+.tag{font-size:11px;font-weight:700;border-radius:999px;padding:1px 7px;border:1px solid var(--c,var(--line));color:var(--c,var(--muted))}
+.tag.memo{--c:var(--lamp);background:color-mix(in srgb,var(--lamp) 12%,transparent)}
+.tag.st-conf{--c:var(--ok)} .tag.st-ann{--c:var(--warn)} .tag.st-est{--c:var(--muted)}
+.memo-peek{grid-column:2/4;font-size:12.5px;color:var(--fg);background:color-mix(in srgb,var(--lamp) 9%,transparent);border-radius:6px;padding:5px 8px;white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.detail{grid-column:1/-1;display:grid;gap:10px;margin-top:8px;padding-top:10px;border-top:1px dashed var(--line);cursor:default}
+.detail dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px}
+.detail dt{color:var(--muted)}
+.detail dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.detail label{font-size:12px;font-weight:800;color:var(--muted);display:flex;justify-content:space-between}
+.detail label span{font-weight:600}
+textarea{width:100%;min-height:92px;resize:vertical;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:10px;font-size:15px;line-height:1.5}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.more{justify-self:center;margin-top:4px}
+.empty{padding:28px 4px;color:var(--muted);text-align:center;line-height:1.7}
+.foot{font-size:11.5px;color:var(--muted);line-height:1.6;padding-top:10px}
+
+.panel{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.panel header{display:flex;align-items:center;gap:8px;padding-block:12px;border-bottom:1px solid var(--line);background:var(--surface)}
+.panel header h2{margin:0;flex:1;font:400 20px var(--f-display)}
+.panel .body{flex:1;min-height:0;overflow:auto;padding-block:12px;display:grid;gap:12px;align-content:start}
+.panel textarea{min-height:42vh}
+.panel h3{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.mlist{display:grid;gap:6px}
+.mitem{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer;display:grid;gap:3px}
+.mitem b{font-size:14px}
+.mitem p{margin:0;font-size:12.5px;color:var(--muted);white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.hint{font-size:12px;color:var(--muted);line-height:1.6;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:10px;font-size:13px;z-index:3000;max-width:90vw}
+
+@media (min-width:900px){
+  .main{flex-direction:row}
+  .mapwrap,.mapwrap.collapsed{height:auto;flex:1;border:0;border-left:1px solid var(--line)}
+  .sheet{flex:none;width:460px;order:-1}
+  #mapToggle{display:none}
+  .panel{left:auto;width:520px;border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.12)}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top gutter">
+    <div class="brand">
+      <h1>펜션 영업 <b>행사지도</b></h1>
+      <span class="sync" id="sync" title="메모 저장 상태"><i></i><span>확인 중</span></span>
+      <button class="btn" id="openNote" type="button">메모장</button>
+    </div>
+    <div class="row">
+      <input type="search" id="q" placeholder="행사명·지역 검색 (예: 송어, 가평)" aria-label="행사 검색" autocomplete="off">
+      <button class="btn" id="filterBtn" type="button" aria-expanded="false" aria-controls="filters">필터 <span class="n" id="filterN"></span></button>
+    </div>
+    <div class="chips" id="regions" role="group" aria-label="지역 선택"></div>
+    <div class="chips" id="dateChips" role="group" aria-label="날짜 선택"></div>
+    <div class="filters" id="filters" hidden>
+      <div class="dates" id="customDates">
+        <span class="lbl">기간</span>
+        <input type="date" id="from" aria-label="시작일">
+        <span>~</span>
+        <input type="date" id="to" aria-label="종료일">
+      </div>
+      <div class="chips" id="cats" role="group" aria-label="분류 선택" style="flex-wrap:wrap"></div>
+      <div class="row" style="flex-wrap:wrap;gap:14px">
+        <label class="check"><input type="checkbox" id="starOnly"> 관심 표시만</label>
+        <label class="check"><input type="checkbox" id="memoOnly"> 메모 있는 행사만</label>
+        <button class="btn" id="resetBtn" type="button">필터 초기화</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="mapwrap" id="mapwrap"><div id="map" role="application" aria-label="전국 행사 지도. 시·도를 누르면 해당 지역 행사 목록이 나옵니다."></div><div class="maplegend" id="mapLegend">숫자 = 행사 수 · 회색은 모두 끝난 지역</div></div>
+    <section class="sheet">
+      <div class="gutter">
+        <div class="sheet-head">
+          <span><span class="where" id="where">전국</span> · 행사 <strong id="count">0</strong>건</span>
+          <button class="btn" id="mapToggle" type="button" aria-controls="mapwrap">지도 접기</button>
+        </div>
+        <div class="chips sgg" id="sgg" role="group" aria-label="시·군·구 선택" hidden></div>
+      </div>
+      <div class="list gutter" id="list" aria-live="polite"></div>
+    </section>
+  </div>
+</div>
+
+<div class="panel" id="notePanel" hidden role="dialog" aria-modal="true" aria-labelledby="noteTitle">
+  <header class="gutter">
+    <h2 id="noteTitle">메모장</h2>
+    <button class="btn pri" id="closeNote" type="button">닫기</button>
+  </header>
+  <div class="body gutter">
+    <label for="note" class="hint">영업 일정, 연락처, 할 일처럼 행사와 상관없는 메모를 자유롭게 적으세요. 자동 저장됩니다.</label>
+    <textarea id="note" placeholder="예) 12/1까지 가평 펜션 5곳 겨울 패키지 제안 연락"></textarea>
+    <h3>메모를 남긴 행사</h3>
+    <div class="mlist" id="mlist"></div>
+    <h3>백업</h3>
+    <p class="hint" id="syncHelp"></p>
+    <div class="actions">
+      <button class="btn" id="exportBtn" type="button">메모 파일로 내보내기</button>
+      <label class="btn" for="importFile">파일에서 가져오기</label>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="data/korea.js"></script>
+<script src="data/sgg.js"></script>
+<script src="data/events.js"></script>
+<script src="data/private.js" onerror="this.remove()"></script>
+<script>
+"use strict";
+/* ================= 기본 데이터 ================= */
+const REGIONS=[["서울","서울"],["경기","경기도"],["인천","인천"],["강원","강원도"],["충북","충청북도"],["충남","충청남도"],["대전","대전"],["세종","세종"],
+  ["전북","전라북도"],["전남","전라남도"],["광주","광주"],["경북","경상북도"],["경남","경상남도"],["대구","대구"],["울산","울산"],["부산","부산"],["제주","제주도"]];
+const REGION_NAME=Object.fromEntries(REGIONS);
+const GEO_KEY={"서울특별시":"서울","부산광역시":"부산","대구광역시":"대구","인천광역시":"인천","광주광역시":"광주","대전광역시":"대전","울산광역시":"울산","세종특별자치시":"세종",
+  "경기도":"경기","강원도":"강원","충청북도":"충북","충청남도":"충남","전라북도":"전북","전라남도":"전남","경상북도":"경북","경상남도":"경남","제주특별자치도":"제주"};
+const CATS={winter:"겨울·해맞이",light:"빛·야간",flower:"꽃·자연",food:"먹거리·특산",heritage:"역사·전통",art:"공연·예술",family:"가족·어린이",etc:"지역축제"};
+const STATUS={conf:"공식 발표",ann:"안내 일정",est:"전년 기준 예상"};
+const EVENTS=window.EVENTS||[];
+/* 영업 메모는 내 컴퓨터의 data/private.js 에만 있음(공개 사이트에는 없음) */
+const PRIVATE=window.PRIVATE||{};EVENTS.forEach(ev=>{if(PRIVATE[ev.id])Object.assign(ev,PRIVATE[ev.id])});
+
+/* ================= 날짜 ================= */
+const DAY=864e5, pad=n=>String(n).padStart(2,"0");
+const toD=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const WD="일월화수목금토";
+const md=d=>`${d.getMonth()+1}.${d.getDate()}(${WD[d.getDay()]})`;
+let today;
+function setToday(){const n=new Date();today=new Date(n.getFullYear(),n.getMonth(),n.getDate())}
+setToday();
+EVENTS.forEach(ev=>{ev.S=toD(ev.s);ev.E=toD(ev.e);ev.days=Math.round((ev.E-ev.S)/DAY)+1;
+  ev.hay=(ev.n+" "+(REGION_NAME[ev.sd]||"")+" "+ev.sd+" "+(ev.sg||"")+" "+CATS[ev.c]).toLowerCase();});
+const phase=ev=>ev.E<today?"past":ev.S<=today?"now":"soon";
+function dlabel(ev){const p=phase(ev);if(p==="past")return"종료";if(p==="now"){const left=Math.round((ev.E-today)/DAY);return left===0?"오늘 끝":"진행중"}return"D-"+Math.round((ev.S-today)/DAY)}
+function range(ev){if(ev.s===ev.e)return`${ev.S.getFullYear()!==today.getFullYear()?ev.S.getFullYear()+". ":""}${md(ev.S)}`;
+  const y=ev.S.getFullYear()!==ev.E.getFullYear()||ev.S.getFullYear()!==today.getFullYear();
+  return `${y?ev.S.getFullYear()+". ":""}${md(ev.S)} ~ ${y?ev.E.getFullYear()+". ":""}${md(ev.E)}`}
+
+/* ================= 메모 저장·동기화 ================= */
+const LS_KEY="pension-map-memos-v1", PREF_KEY="pension-map-prefs-v1";
+/* 메모 서버(serve.py)는 내 노트북·같은 와이파이에서만. 공개 사이트에서는 브라우저에만 저장 */
+const LOCAL_HOST=/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[::1\]$)|\.local$/.test(location.hostname);
+const API=location.protocol.startsWith("http")&&LOCAL_HOST?"api/memos":null;
+function lsGet(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+let memo=lsGet(LS_KEY,null)||{items:{},note:{t:"",u:0}};
+memo.items=memo.items||{};memo.note=memo.note||{t:"",u:0};
+function mergeMemo(a,b){let changed=false;
+  for(const [k,v] of Object.entries((b&&b.items)||{})){if(v&&(v.u||0)>((a.items[k]||{}).u||0)){a.items[k]=v;changed=true}}
+  if(b&&b.note&&(b.note.u||0)>(a.note.u||0)){a.note=b.note;changed=true}
+  return changed}
+const getItem=id=>memo.items[id]||{t:"",star:false,u:0};
+const hasMemo=id=>!!(memo.items[id]&&memo.items[id].t&&memo.items[id].t.trim());
+const isStar=id=>!!(memo.items[id]&&memo.items[id].star);
+function setItem(id,patch){memo.items[id]={...getItem(id),...patch,u:Date.now()};lsSet(LS_KEY,memo);schedulePush()}
+let pushTimer=null,serverOK=false,lastSync=null;
+function schedulePush(){setSync(API?"saving":"local");clearTimeout(pushTimer);pushTimer=setTimeout(push,700)}
+async function push(){if(!API)return;
+  try{const r=await fetch(API,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(memo)});
+    if(!r.ok)throw new Error(r.status);const srv=await r.json();const ch=mergeMemo(memo,srv);lsSet(LS_KEY,memo);serverOK=true;lastSync=new Date();setSync("on");if(ch)softRefresh()}
+  catch(e){serverOK=false;setSync("err")}}
+async function pull(){if(!API){setSync("local");return}
+  try{const r=await fetch(API,{cache:"no-store"});if(!r.ok)throw new Error(r.status);const srv=await r.json();
+    const ch=mergeMemo(memo,srv);lsSet(LS_KEY,memo);serverOK=true;lastSync=new Date();setSync("on");
+    if(mergeMemo(srv,memo))push(); /* 이 기기에만 있던 변경을 서버로 */
+    if(ch)softRefresh()}
+  catch(e){serverOK=false;setSync("err")}}
+const syncEl=document.getElementById("sync");
+function setSync(s){syncEl.className="sync "+(s==="on"?"on":s==="err"?"err":"");
+  syncEl.querySelector("span").textContent=s==="on"?`동기화됨 ${pad(lastSync.getHours())}:${pad(lastSync.getMinutes())}`:s==="saving"?"저장 중…":s==="err"?"서버 연결 안 됨 · 이 기기에 저장":"이 기기에만 저장";
+  document.getElementById("syncHelp").textContent=API?(s==="err"?"serve.py 서버에 연결되지 않아 이 기기에만 저장하고 있습니다. 서버를 다시 켜면 자동으로 합쳐집니다.":"메모는 노트북의 memos.json에 저장되어 노트북과 휴대폰에서 같이 보입니다. 혹시 몰라 파일로도 백업해 두세요."):"메모는 이 브라우저에만 저장되고 다른 사람에게는 보이지 않습니다. 다른 기기로 옮기려면 아래 '내보내기'로 파일을 만든 뒤 그 기기에서 '가져오기' 하세요. 브라우저 기록을 지우면 메모도 지워질 수 있으니 가끔 내보내 두세요."}
+/* 입력 중일 때는 목록을 다시 그리지 않음 */
+function softRefresh(){const a=document.activeElement;if(a&&a.tagName==="TEXTAREA"){pendingRefresh=true;return}render();renderNoteList();noteEl.value=memo.note.t||""}
+let pendingRefresh=false;
+document.addEventListener("focusout",e=>{if(e.target.tagName==="TEXTAREA"&&pendingRefresh){pendingRefresh=false;setTimeout(()=>{render();renderNoteList()},0)}});
+
+/* ================= 상태 ================= */
+const pref=lsGet(PREF_KEY,{});
+const state={q:"",sido:"",sg:"",cats:new Set(Object.keys(CATS)),date:pref.date||"all",from:"",to:"",starOnly:false,memoOnly:false,sel:null,limit:60,mapOpen:pref.mapOpen!==false};
+const savePref=()=>lsSet(PREF_KEY,{date:state.date,mapOpen:state.mapOpen});
+
+/* ================= 필터 ================= */
+function dateRange(){
+  const y=today.getFullYear(),m=today.getMonth();
+  switch(state.date){
+    case "active":return[today,null];
+    case "week":{const end=new Date(today.getTime()+(7-today.getDay())%7*DAY);return[today,end]}
+    case "this":return[new Date(y,m,1),new Date(y,m+1,0)];
+    case "next":return[new Date(y,m+1,1),new Date(y,m+2,0)];
+    case "next3":return[today,new Date(today.getTime()+90*DAY)];
+    case "custom":return[state.from?toD(state.from):null,state.to?toD(state.to):null];
+    default:return[null,null];
+  }}
+function passes(ev,skip){
+  if(skip!=="sido"&&state.sido&&ev.sd!==state.sido)return false;
+  if(skip!=="sido"&&skip!=="sg"&&state.sg&&ev.sg!==state.sg)return false;
+  if(skip!=="cat"&&!state.cats.has(ev.c))return false;
+  const [f,t]=dateRange();if(f&&ev.E<f)return false;if(t&&ev.S>t)return false;
+  if(state.starOnly&&!isStar(ev.id))return false;
+  if(state.memoOnly&&!hasMemo(ev.id))return false;
+  if(state.q){const words=state.q.toLowerCase().split(/\s+/).filter(Boolean);
+    const memoT=(memo.items[ev.id]&&memo.items[ev.id].t||"").toLowerCase();
+    if(!words.every(w=>ev.hay.includes(w)||memoT.includes(w)))return false}
+  return true}
+/* 정렬: 진행 중 → 예정(가까운 순) → 종료(최근 순) */
+function sortEvents(a,b){const pa=phase(a),pb=phase(b),rank={now:0,soon:1,past:2};
+  if(rank[pa]!==rank[pb])return rank[pa]-rank[pb];
+  if(pa==="now")return a.E-b.E||a.n.localeCompare(b.n,"ko");
+  if(pa==="soon")return a.S-b.S||a.n.localeCompare(b.n,"ko");
+  return b.E-a.E||a.n.localeCompare(b.n,"ko")}
+
+/* ================= 상단 컨트롤 ================= */
+const $=id=>document.getElementById(id);
+const regionsEl=$("regions"),dateEl=$("dateChips"),catsEl=$("cats"),sggEl=$("sgg");
+function chip(label,pressed,extra=""){return`<button type="button" class="chip" aria-pressed="${pressed}" ${extra}>${label}</button>`}
+function renderRegions(){
+  const counts={};let total=0;EVENTS.forEach(ev=>{if(passes(ev,"sido")){counts[ev.sd]=(counts[ev.sd]||0)+1;total++}});
+  regionsEl.innerHTML=chip(`전국 <span class="n">${total}</span>`,!state.sido,'data-r=""')+
+    REGIONS.map(([k,n])=>chip(`${n} <span class="n">${counts[k]||0}</span>`,state.sido===k,`data-r="${k}"`)).join("");
+  const sel=regionsEl.querySelector('[aria-pressed="true"]');if(sel&&!renderRegions.init){sel.scrollIntoView({inline:"center",block:"nearest"});}
+}
+regionsEl.addEventListener("click",e=>{const b=e.target.closest("[data-r]");if(!b)return;setSido(b.dataset.r,true)});
+const DATES=[["all","전체"],["active","진행·예정"],["week","이번 주"],["this","이번 달"],["next","다음 달"],["next3","3개월 내"],["custom","직접 선택"]];
+function renderDates(){dateEl.innerHTML=DATES.map(([k,l])=>chip(l,state.date===k,`data-d="${k}"`)).join("")}
+dateEl.addEventListener("click",e=>{const b=e.target.closest("[data-d]");if(!b)return;state.date=b.dataset.d;
+  if(state.date==="custom"){openFilters(true);if(!state.from){state.from=iso(today);$("from").value=state.from}$("from").focus()}
+  savePref();renderDates();refresh()});
+function renderCats(){const counts={};EVENTS.forEach(ev=>{if(passes(ev,"cat"))counts[ev.c]=(counts[ev.c]||0)+1});
+  catsEl.innerHTML=Object.entries(CATS).map(([k,n])=>chip(`<span class="dot" style="--c:var(--c-${k})"></span>${n} <span class="n">${counts[k]||0}</span>`,state.cats.has(k),`data-c="${k}"`)).join("")}
+catsEl.addEventListener("click",e=>{const b=e.target.closest("[data-c]");if(!b)return;const k=b.dataset.c;
+  if(state.cats.size===Object.keys(CATS).length){state.cats=new Set([k])}else{state.cats.has(k)?state.cats.delete(k):state.cats.add(k);if(!state.cats.size)state.cats=new Set(Object.keys(CATS))}
+  refresh()});
+function renderSgg(){
+  if(!state.sido){sggEl.hidden=true;return}
+  const counts={};EVENTS.forEach(ev=>{if(ev.sd===state.sido&&ev.sg&&passes({...ev},"sido")&&ev.sd===state.sido)counts[ev.sg]=(counts[ev.sg]||0)+1});
+  const names=[...new Set(EVENTS.filter(ev=>ev.sd===state.sido&&ev.sg).map(ev=>ev.sg))].sort((a,b)=>a.localeCompare(b,"ko"));
+  if(!names.length){sggEl.hidden=true;return}
+  sggEl.hidden=false;
+  sggEl.innerHTML=chip("전체",!state.sg,'data-g=""')+names.map(n=>chip(`${n} <span class="n">${counts[n]||0}</span>`,state.sg===n,`data-g="${n}"`+(counts[n]?"":" disabled"))).join("");
+}
+sggEl.addEventListener("click",e=>{const b=e.target.closest("[data-g]");if(!b||b.disabled)return;selectSgg(b.dataset.g)});
+let qTimer;$("q").addEventListener("input",e=>{clearTimeout(qTimer);qTimer=setTimeout(()=>{state.q=e.target.value.trim();state.limit=60;refresh()},150)});
+$("from").addEventListener("change",e=>{state.from=e.target.value;state.date="custom";renderDates();refresh()});
+$("to").addEventListener("change",e=>{state.to=e.target.value;state.date="custom";renderDates();refresh()});
+$("starOnly").addEventListener("change",e=>{state.starOnly=e.target.checked;refresh()});
+$("memoOnly").addEventListener("change",e=>{state.memoOnly=e.target.checked;refresh()});
+function openFilters(open){const f=$("filters");f.hidden=!open;$("filterBtn").setAttribute("aria-expanded",open);$("filterBtn").classList.toggle("on",open);setTimeout(()=>map.invalidateSize(),50)}
+$("filterBtn").addEventListener("click",()=>openFilters($("filters").hidden));
+$("resetBtn").addEventListener("click",()=>{state.cats=new Set(Object.keys(CATS));state.date="all";state.from=state.to="";$("from").value=$("to").value="";
+  state.starOnly=state.memoOnly=false;$("starOnly").checked=$("memoOnly").checked=false;state.q="";$("q").value="";savePref();renderDates();refresh()});
+function updateFilterN(){let n=0;if(state.cats.size!==Object.keys(CATS).length)n++;if(state.starOnly)n++;if(state.memoOnly)n++;if(state.date==="custom")n++;$("filterN").textContent=n?n:""}
+
+/* ================= 지도 ================= */
+/* 단순 지도: 배경 타일 없이 시·도/시·군·구 경계만, 행사는 지역별 개수 원으로 표시 */
+const map=L.map("map",{zoomControl:true,attributionControl:false,minZoom:5,maxZoom:11,zoomSnap:.25,maxBounds:[[31.5,122.5],[40,133.5]]});
+map.zoomControl.setPosition("topright");
+const KOREA=[[33.1,125.9],[38.6,129.6]];
+/* 전국 화면에서 시·도 원을 놓을 위치(겹치지 않게 손으로 조정) */
+const PROV_CENTER={"서울":[37.55,126.98],"인천":[37.42,126.3],"경기":[37.88,127.3],"강원":[37.75,128.35],"충북":[36.95,127.85],"충남":[36.45,126.65],
+  "대전":[36.3,127.5],"세종":[36.72,127.15],"전북":[35.75,127.2],"전남":[34.72,127.0],"광주":[35.15,126.72],"경북":[36.5,128.85],
+  "대구":[35.85,128.6],"경남":[35.3,128.15],"울산":[35.6,129.35],"부산":[35.13,129.1],"제주":[33.38,126.55]};
+const provLayers={};
+L.geoJSON(window.KOREA_GEO,{
+  style:()=>({className:"prov"}),
+  onEachFeature:(f,layer)=>{const k=GEO_KEY[f.properties.n]||Object.entries(GEO_KEY).find(([n])=>f.properties.n.startsWith(n.slice(0,2)))?.[1];
+    provLayers[k]=layer;layer.on("click",()=>{if(state.sido!==k)setSido(k,true)})}
+}).addTo(map);
+const sggLayer=L.geoJSON(null,{style:()=>({className:"sggshape"}),
+  onEachFeature:(f,l)=>l.on("click",()=>{const sg=f.properties.sg;selectSgg(state.sg===sg?"":sg)})}).addTo(map);
+const bubbles=L.layerGroup().addTo(map);
+let drawnSido=null;
+function drawSgg(){
+  if(drawnSido!==state.sido){sggLayer.clearLayers();drawnSido=state.sido;
+    if(state.sido)sggLayer.addData({type:"FeatureCollection",features:window.SGG_GEO.features.filter(f=>f.properties.sd===state.sido)})}
+  sggLayer.eachLayer(l=>{const el=l.getElement();el&&el.classList.toggle("sel",!!state.sg&&l.feature.properties.sg===state.sg)});
+  Object.entries(provLayers).forEach(([key,l])=>{const el=l.getElement();el&&el.classList.toggle("sel",key===state.sido)});
+}
+function updateBubbles(){
+  bubbles.clearLayers();
+  $("map").classList.toggle("narrow",map.getSize().x<520);
+  const inSido=!!state.sido, groups=new Map(), selEv=state.sel&&EVENTS.find(e=>e.id===state.sel);
+  EVENTS.forEach(ev=>{
+    if(inSido){if(ev.sd!==state.sido||!passes(ev,"sg"))return}else if(!passes(ev,"sido"))return;
+    const k=inSido?(ev.sg||""):ev.sd;const g=groups.get(k)||{n:0,live:0};g.n++;if(phase(ev)!=="past")g.live++;groups.set(k,g)});
+  groups.forEach((g,k)=>{
+    const ll=inSido?(k&&window.SGG_CENTER[state.sido+"|"+k]||PROV_CENTER[state.sido]):PROV_CENTER[k];
+    if(!ll)return;
+    const narrow=map.getSize().x<520;
+    const size=inSido?Math.round((narrow?18:22)+Math.min(narrow?10:14,Math.sqrt(g.n)*2.5)):Math.round((narrow?20:28)+Math.min(narrow?10:16,Math.sqrt(g.n)*1.6));
+    const name=inSido?(k||"지역 전체"):k;
+    const sel=inSido?((state.sg&&state.sg===k)||(selEv&&selEv.sd===state.sido&&(selEv.sg||"")===k)):false;
+    const icon=L.divIcon({className:"",iconSize:[size,size],iconAnchor:[size/2,size/2],
+      html:`<div class="bwrap ${inSido?"small":""} ${sel?"on":""}" style="width:${size}px;height:${size}px"><div class="bub ${g.live?"":"past"} ${sel?"sel":""}">${g.n}</div><span class="bl">${esc(name)}</span></div>`});
+    const m=L.marker(ll,{icon,title:`${name} 행사 ${g.n}건 (진행·예정 ${g.live}건)`,keyboard:true,riseOnHover:true,zIndexOffset:sel?1000:g.n});
+    m.on("click",()=>{if(!inSido)setSido(k,true);else selectSgg(state.sg===k?"":k)});
+    bubbles.addLayer(m)});
+}
+function fitToFiltered(){
+  if(state.sido&&provLayers[state.sido]){map.fitBounds(provLayers[state.sido].getBounds(),{padding:[18,18]});return}
+  map.fitBounds(KOREA,{padding:[6,6]})}
+map.fitBounds(KOREA,{padding:[6,6]});
+function setSido(k,fit){state.sido=k;state.sg="";state.limit=60;state.sel=null;
+  refresh();if(fit)fitToFiltered();$("list").scrollTop=0;
+  const b=regionsEl.querySelector(`[data-r="${k}"]`);b&&b.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"})}
+function selectSgg(sg){state.sg=sg;state.limit=60;state.sel=null;refresh();$("list").scrollTop=0;
+  const b=sggEl.querySelector(`[data-g="${sg}"]`);b&&b.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"})}
+const mapwrap=$("mapwrap");
+function applyMap(){mapwrap.classList.toggle("collapsed",!state.mapOpen);$("mapToggle").textContent=state.mapOpen?"지도 접기":"지도 펼치기";setTimeout(()=>map.invalidateSize(),60)}
+$("mapToggle").addEventListener("click",()=>{state.mapOpen=!state.mapOpen;savePref();applyMap()});
+let lastW=0;
+new ResizeObserver(()=>{map.invalidateSize();const w=map.getSize().x;if(Math.abs(w-lastW)>40&&w>0){lastW=w;updateBubbles();fitToFiltered()}}).observe(mapwrap);
+
+/* ================= 목록 ================= */
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STAR='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4L2.8 9.5l6.4-.8z"/></svg>';
+const listEl=$("list");
+let currentRows=[];
+function cardHTML(ev){
+  const p=phase(ev),sel=state.sel===ev.id,it=getItem(ev.id),region=`${REGION_NAME[ev.sd]||ev.sd}${ev.sg?" "+ev.sg:""}`;
+  let tags=`<span class="tag" style="--c:var(--c-${ev.c})">${CATS[ev.c]}</span>`;
+  if(ev.src==="x")tags+=`<span class="tag st-${ev.st}">${STATUS[ev.st]}</span>`;
+  if(ev.ap)tags+=`<span class="tag st-est">날짜 확인 필요</span>`;
+  if(ev.w)tags+=`<span class="tag" style="--c:var(--accent)">공식 사이트</span>`;
+  if(hasMemo(ev.id))tags+=`<span class="tag memo">메모</span>`;
+  const peek=hasMemo(ev.id)&&!sel?`<div class="memo-peek">${esc(it.t)}</div>`:"";
+  return `<article class="card ${p==="past"?"past":""} ${sel?"sel":""}" data-id="${ev.id}">
+    <div class="date"><span class="m">${ev.S.getFullYear()!==today.getFullYear()?String(ev.S.getFullYear()).slice(2)+"년 ":""}${ev.S.getMonth()+1}월</span><span class="d">${ev.S.getDate()}</span><span class="dd ${p}">${dlabel(ev)}</span></div>
+    <div class="ttl"><h3><a href="#" class="open" data-open="${ev.id}" aria-expanded="${sel}" style="color:inherit;text-decoration:none">${esc(ev.n)}</a></h3></div>
+    <button type="button" class="star" data-star="${ev.id}" aria-pressed="${!!it.star}" aria-label="관심 표시">${STAR}</button>
+    <div class="meta"><span>${region}</span><span>${range(ev)}</span><span>${ev.days}일간</span></div>
+    <div class="tags">${tags}</div>${peek}
+    ${sel?detailHTML(ev,it):""}
+  </article>`}
+function detailHTML(ev,it){
+  const place=`${REGION_NAME[ev.sd]||ev.sd} ${ev.sg||""}`.trim();
+  return `<div class="detail">
+    <dl>
+      ${ev.tm?`<dt>운영 시간</dt><dd>${esc(ev.tm)}</dd>`:""}
+      <dt>장소</dt><dd>${ev.v?esc(ev.v)+"<br>":""}<span style="color:var(--muted)">${esc(place)}</span></dd>
+      ${ev.f?`<dt>요금</dt><dd>${esc(ev.f)}</dd>`:""}
+      ${ev.h?`<dt>주최·주관</dt><dd>${esc(ev.h)}</dd>`:""}
+      ${ev.tel?`<dt>문의</dt><dd><a href="tel:${esc(ev.tel.replace(/[^0-9-]/g,""))}" style="color:var(--accent)">${esc(ev.tel)}</a></dd>`:""}
+      ${ev.tip?`<dt>영업 메모</dt><dd>${esc(ev.tip)}</dd>`:""}
+      ${ev.sell?`<dt>상품 아이디어</dt><dd>${esc(ev.sell)}</dd>`:""}
+      <dt>출처</dt><dd>${ev.src==="m"?"문화체육관광부 지역축제 목록"+(ev.dt?` (상세정보 ${ev.dt.slice(5).replace("-","/")} 확인)`:""):"추가 조사 · "+STATUS[ev.st]}</dd>
+    </dl>
+    <div>
+      <label for="memo-${ev.id}">내 메모 <span id="ms-${ev.id}">${it.u?"저장됨 "+new Date(it.u).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):""}</span></label>
+      <textarea id="memo-${ev.id}" data-memo="${ev.id}" placeholder="예) 11/20 펜션 3곳 연락, 축제 기간 2박 할인 제안">${esc(it.t)}</textarea>
+    </div>
+    <div class="actions">
+      ${/^https?:\/\//.test(ev.w||"")?`<a class="btn pri" href="${esc(ev.w)}" target="_blank" rel="noopener">공식 사이트</a>`:""}
+      <a class="btn" href="https://map.naver.com/p/search/${encodeURIComponent(ev.v?(ev.sg||REGION_NAME[ev.sd])+" "+ev.v.split(/\s*(?:및|,|일원|일대)\s*/)[0]:ev.n.replace(/\s*\(.*?\)\s*/g," ")+" "+(ev.sg||REGION_NAME[ev.sd]))}" target="_blank" rel="noopener">네이버 지도</a>
+      <a class="btn" href="https://search.naver.com/search.naver?query=${encodeURIComponent(ev.n.replace(/\s*\(.*?\)\s*/g," ")+" "+ev.S.getFullYear())}" target="_blank" rel="noopener">최신 정보 검색</a>
+      <button class="btn" type="button" data-copy="${ev.id}">홍보 문구 복사</button>
+    </div>
+  </div>`}
+function render(){
+  const rows=EVENTS.filter(ev=>passes(ev)).sort(sortEvents);currentRows=rows;
+  $("count").textContent=rows.length.toLocaleString();
+  $("where").textContent=state.sido?(REGION_NAME[state.sido]+(state.sg?" "+state.sg:"")):"전국";
+  if(state.sel&&!rows.some(r=>r.id===state.sel))state.sel=null;
+  let selIdx=state.sel?rows.findIndex(r=>r.id===state.sel):-1;if(selIdx>=state.limit)state.limit=selIdx+20;
+  const shown=rows.slice(0,state.limit);
+  const counts={now:0,soon:0,past:0};rows.forEach(r=>counts[phase(r)]++);
+  const label={now:"진행 중",soon:"진행 예정",past:"종료된 행사"};
+  let html="",last="";
+  shown.forEach(ev=>{const p=phase(ev);if(p!==last){html+=`<div class="group ${p==="now"?"now":""}">${label[p]}<small>${counts[p]}건</small></div>`;last=p}html+=cardHTML(ev)});
+  if(rows.length>shown.length)html+=`<button type="button" class="btn more" id="moreBtn">더 보기 (${rows.length-shown.length}건 남음)</button>`;
+  if(!rows.length)html=`<div class="empty">조건에 맞는 행사가 없습니다.<br>날짜를 ‘전체’로 바꾸거나 필터를 초기화해 보세요.</div>`;
+  html+=`<p class="foot">데이터: 문화체육관광부 지역축제 목록(2026년 등록분${window.EVENTS_UPDATED?`, ${window.EVENTS_UPDATED.slice(0,10).replace(/-/g,".")} 갱신`:""}) ${EVENTS.filter(e=>e.src==="m").length}건 + 다가올 겨울 시즌 추가 조사 ${EVENTS.filter(e=>e.src==="x").length}건. 지도 위치는 시·군·구 중심이라 실제 행사장과 다를 수 있습니다. 일정은 바뀔 수 있으니 영업 전 주최측 공지를 확인하세요.</p>`;
+  listEl.innerHTML=html;
+  renderRegions();renderCats();renderSgg();updateFilterN();drawSgg();updateBubbles();
+}
+function refresh(){render()}
+listEl.addEventListener("click",async e=>{
+  const more=e.target.closest("#moreBtn");if(more){state.limit+=80;render();return}
+  const st=e.target.closest("[data-star]");if(st){e.stopPropagation();const id=st.dataset.star;setItem(id,{star:!isStar(id)});st.setAttribute("aria-pressed",isStar(id));if(state.starOnly)render();return}
+  const cp=e.target.closest("[data-copy]");if(cp){const ev=EVENTS.find(x=>x.id===cp.dataset.copy);copy(pitch(ev));return}
+  if(e.target.closest("a[href^='http'],a[href^='tel'],.detail"))return;
+  const card=e.target.closest(".card");if(card){e.preventDefault();select(card.dataset.id,"list")}
+});
+listEl.addEventListener("input",e=>{const t=e.target.closest("[data-memo]");if(!t)return;const id=t.dataset.memo;
+  setItem(id,{t:t.value});const s=$("ms-"+id);if(s)s.textContent="저장 중…";clearTimeout(t._tm);t._tm=setTimeout(()=>{if(s)s.textContent="저장됨"},800)});
+function select(id,from){
+  const was=state.sel;state.sel=(was===id&&from==="list")?null:id;
+  render();
+  if(!state.sel)return;
+  const card=listEl.querySelector(`[data-id="${id}"]`);
+  if(card){card.scrollIntoView({block:from==="map"?"start":"nearest",behavior:"smooth"})}
+}
+function pitch(ev){
+  return `[${ev.n} ${range(ev)}]\n${REGION_NAME[ev.sd]||ev.sd} ${ev.sg||""}에서 열리는 ${ev.n.replace(/\s*\(.*?\)\s*/g,"")}, 숙소는 정하셨나요?\n○○펜션은 행사장까지 차로 약 __분 거리입니다.\n${ev.sell?"· "+ev.sell+"\n":""}· 행사 기간 예약 문의: 010-____-____`}
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,1800)}
+async function copy(txt){try{await navigator.clipboard.writeText(txt);toast("홍보 문구를 복사했습니다")}catch(e){
+  const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("홍보 문구를 복사했습니다")}catch(_){toast("복사하지 못했습니다")}ta.remove()}}
+
+/* ================= 메모장 패널 ================= */
+const noteEl=$("note"),panel=$("notePanel");
+noteEl.value=memo.note.t||"";
+noteEl.addEventListener("input",()=>{memo.note={t:noteEl.value,u:Date.now()};lsSet(LS_KEY,memo);schedulePush()});
+function renderNoteList(){
+  const items=Object.entries(memo.items).filter(([id,v])=>v.t&&v.t.trim()||v.star).map(([id,v])=>({ev:EVENTS.find(e=>e.id===id),v})).filter(x=>x.ev).sort((a,b)=>b.v.u-a.v.u);
+  $("mlist").innerHTML=items.length?items.map(({ev,v})=>`<div class="mitem" data-goto="${ev.id}" role="button" tabindex="0"><b>${v.star?"★ ":""}${esc(ev.n)}</b><p>${esc(range(ev))} · ${esc(REGION_NAME[ev.sd]||ev.sd)} ${esc(ev.sg||"")}${v.t&&v.t.trim()?"\n"+esc(v.t):""}</p></div>`).join("")
+    :`<p class="hint">아직 없습니다. 행사 카드를 펼쳐 ‘내 메모’를 적거나 별표를 누르면 여기에 모입니다.</p>`}
+$("mlist").addEventListener("click",e=>{const g=e.target.closest("[data-goto]");if(!g)return;closeNote();const ev=EVENTS.find(x=>x.id===g.dataset.goto);
+  if(state.sido&&state.sido!==ev.sd)setSido("",false);if(!passes(ev)){$("resetBtn").click()}select(ev.id,"map")});
+function openNote(){renderNoteList();panel.hidden=false;noteEl.focus({preventScroll:true})}
+function closeNote(){panel.hidden=true}
+$("openNote").addEventListener("click",openNote);$("closeNote").addEventListener("click",closeNote);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!panel.hidden)closeNote()});
+$("exportBtn").addEventListener("click",()=>{const blob=new Blob([JSON.stringify(memo,null,1)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`행사지도-메모-${iso(today)}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)});
+$("importFile").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;
+  try{const data=JSON.parse(await f.text());if(!data.items)throw 0;mergeMemo(memo,data);lsSet(LS_KEY,memo);schedulePush();render();renderNoteList();noteEl.value=memo.note.t||"";toast("메모를 합쳤습니다")}
+  catch(_){toast("메모 파일 형식이 아닙니다")}e.target.value=""});
+
+/* ================= 시작 ================= */
+renderDates();applyMap();render();setSync(API?"saving":"local");pull();
+setTimeout(()=>{map.invalidateSize();fitToFiltered()},120);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){const d=today.getTime();setToday();if(today.getTime()!==d)render();pull()}});
+setInterval(()=>{if(document.visibilityState==="visible")pull()},60000);
+</script>
+</body>
+</html>
