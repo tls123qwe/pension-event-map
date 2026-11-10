@@ -11,7 +11,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60   # 해외 서버에서 문체부 사이트가 느려 약 20분 걸림
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
